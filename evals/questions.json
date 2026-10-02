@@ -1,0 +1,16 @@
+[
+  {
+    "id": "q01",
+    "question": "How many orders were delivered?",
+    "gold_sql": "SELECT COUNT(*) FROM orders WHERE order_status = 'delivered'",
+    "ordered": false,
+    "difficulty": "easy"
+  },
+  {
+    "id": "q02",
+    "question": "Which 5 customer states placed the most orders? Give the state and the number of orders.",
+    "gold_sql": "SELECT c.customer_state, COUNT(*) AS n FROM orders o JOIN customers c ON c.customer_id = o.customer_id GROUP BY c.customer_state ORDER BY n DESC LIMIT 5",
+    "ordered": true,
+    "difficulty": "medium"
+  }
+]
