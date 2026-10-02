@@ -11,12 +11,13 @@ Check:  python checks/check_m2.py
 
 
 def normalize_value(v):
-    """Make one cell comparable.
-    TODO: floats -> round to 2 decimals. Strings -> strip spaces and lowercase. Everything else unchanged.
-    """
-    raise NotImplementedError
-
-
+    if isinstance(v, float):
+        return round(v, 2)  # round floats to 2 decimal places
+    elif isinstance(v, str):
+        return v.strip().lower()  # ignore whitespace and case
+    else:
+        return v  # leave ints, None, etc. alone
+   
 def results_match(gold_rows: list[list], agent_rows: list[list], ordered: bool = False) -> bool:
     """True if both results contain the same data.
 
@@ -29,4 +30,12 @@ def results_match(gold_rows: list[list], agent_rows: list[list], ordered: bool =
 
     Known limitation, write it in your README later: if the agent returns extra columns, this says False.
     """
-    raise NotImplementedError
+    gold_rows = [tuple(normalize_value(cell) for cell in row) for row in gold_rows]
+    agent_rows = [tuple(normalize_value(cell) for cell in row) for row in agent_rows]
+    if len(gold_rows) != len(agent_rows):
+        return False
+    if not ordered:
+        gold_rows = sorted(gold_rows,  key=lambda row: [str(c) for c in row])
+        agent_rows = sorted(agent_rows, key=lambda row: [str(c) for c in row])
+    return gold_rows == agent_rows
+
