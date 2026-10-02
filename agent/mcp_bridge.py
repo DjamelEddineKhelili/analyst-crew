@@ -15,7 +15,8 @@ checks/check_m1.py already contains a working MCP client. Read it before startin
 """
 import sys
 from contextlib import AsyncExitStack
-
+from google.genai import types
+import json
 from mcp import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 
@@ -29,12 +30,18 @@ class McpTools:
 
     async def __aenter__(self):
         # TODO 1: build StdioServerParameters (command = sys.executable, args = [self.server_script]).
+        params = StdioServerParameters(command=sys.executable, args=[str(self.server_script)])
+
         # TODO 2: read, write = await self._stack.enter_async_context(stdio_client(params))
+        read, write = await self._stack.enter_async_context(stdio_client(params))
         # TODO 3: self.session = await self._stack.enter_async_context(ClientSession(read, write))
+        self.session = await self._stack.enter_async_context(ClientSession(read, write))
         # TODO 4: await self.session.initialize(), then fill self.tools.
         #  WHY AsyncExitStack: `async with` blocks close when the block ends. The stack lets us keep
         #  them open for the whole agent run and close everything at once in __aexit__.
-        raise NotImplementedError
+        await self.session.initialize()
+        self.tools = (await self.session.list_tools()).tools
+        return self
 
     async def __aexit__(self, *exc):
         await self._stack.aclose()
@@ -44,7 +51,9 @@ class McpTools:
         TODO: one types.FunctionDeclaration per tool: name, description, parameters_json_schema=tool.input_schema
         (CHEATSHEET.md, "MCP tools -> Gemini").
         """
-        raise NotImplementedError
+        return [types.FunctionDeclaration(name=tool.name,
+                                         description=tool.description,
+                                         parameters_json_schema=tool.input_schema) for tool in self.tools]
 
     async def call(self, name: str, args: dict) -> dict:
         """Call a tool and ALWAYS return a plain dict, even on error (the LLM must see errors, not crash on them).
@@ -52,4 +61,8 @@ class McpTools:
               if result.is_error -> return {"error": <the text>}
               else -> return the data (structured_content, or json.loads of the text)
         """
-        raise NotImplementedError
+        result = await self.session.call_tool(name, args)
+        if result.is_error:
+            text = result.content[0].text.strip() if result.content else ""
+            return {"error": text}
+        return result.structured_content if result.structured_content is not None else json.loads(result.content[0].text)
