@@ -88,6 +88,8 @@ async def main(agent_name: str, limit: int | None):
             "error": error or result.get("error"),
             "llm_calls": result.get("llm_calls", 0),
             "steps": result.get("steps"),
+            "plan": result.get("plan"),
+            "critiques": result.get("critiques"),
             "answer": result.get("answer"),
         })
         RUNS.mkdir(exist_ok=True)
