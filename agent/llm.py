@@ -59,7 +59,7 @@ class GeminiLLM:
         from google import genai
         self.genai = genai
         self.types = genai.types
-        self.client = genai.Client()  # reads GEMINI_API_KEY from the environment
+        self.client = genai.Client(http_options=genai.types.HttpOptions(timeout=60_000))        
         first = model or os.getenv("GEMINI_MODEL") or self.FALLBACK_MODELS[0]
         self.models = [first] + [m for m in self.FALLBACK_MODELS if m != first]
         self.retries = retries

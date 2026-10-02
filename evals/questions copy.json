@@ -1,0 +1,81 @@
+[
+  {"id": "q01", "difficulty": "easy", "ordered": false,
+   "question": "How many orders were delivered?",
+   "gold_sql": "SELECT COUNT(*) FROM orders WHERE order_status = 'delivered'"},
+
+  {"id": "q02", "difficulty": "easy", "ordered": false,
+   "question": "How many orders were canceled?",
+   "gold_sql": "SELECT COUNT(*) FROM orders WHERE order_status = 'canceled'"},
+
+  {"id": "q03", "difficulty": "easy", "ordered": false,
+   "question": "How many sellers are located in the state of São Paulo (SP)?",
+   "gold_sql": "SELECT COUNT(*) FROM sellers WHERE seller_state = 'SP'"},
+
+  {"id": "q04", "difficulty": "easy", "ordered": false,
+   "question": "How many unique customers are there? Count real people (customer_unique_id), not customer_id.",
+   "gold_sql": "SELECT COUNT(DISTINCT customer_unique_id) FROM customers"},
+
+  {"id": "q05", "difficulty": "easy", "ordered": false,
+   "question": "What is the average review score across all reviews, with 2 decimals?",
+   "gold_sql": "SELECT AVG(review_score) FROM reviews"},
+
+  {"id": "q06", "difficulty": "easy", "ordered": false,
+   "question": "How many reviews are there for each review score? Give the score and the count.",
+   "gold_sql": "SELECT review_score, COUNT(*) FROM reviews GROUP BY review_score"},
+
+  {"id": "q07", "difficulty": "easy", "ordered": false,
+   "question": "How many different product categories exist in the products table (Portuguese names, ignoring products with no category)?",
+   "gold_sql": "SELECT COUNT(DISTINCT product_category_name) FROM products"},
+
+  {"id": "q08", "difficulty": "medium", "ordered": true,
+   "question": "Which 5 customer states placed the most orders? Give the state and the number of orders, highest first.",
+   "gold_sql": "SELECT c.customer_state, COUNT(*) AS n FROM orders o JOIN customers c ON c.customer_id = o.customer_id GROUP BY c.customer_state ORDER BY n DESC LIMIT 5"},
+
+  {"id": "q09", "difficulty": "medium", "ordered": true,
+   "question": "What is the most used payment type, and how many payments use it?",
+   "gold_sql": "SELECT payment_type, COUNT(*) AS n FROM order_payments GROUP BY payment_type ORDER BY n DESC LIMIT 1"},
+
+  {"id": "q10", "difficulty": "medium", "ordered": false,
+   "question": "What is the average payment value for each payment type, with 2 decimals?",
+   "gold_sql": "SELECT payment_type, AVG(payment_value) FROM order_payments GROUP BY payment_type"},
+
+  {"id": "q11", "difficulty": "medium", "ordered": false,
+   "question": "How many orders were placed in each year (based on the purchase date)? Give the year and the count.",
+   "gold_sql": "SELECT strftime('%Y', order_purchase_timestamp) AS y, COUNT(*) FROM orders GROUP BY y"},
+
+  {"id": "q12", "difficulty": "medium", "ordered": false,
+   "question": "How many orders contain more than one item?",
+   "gold_sql": "SELECT COUNT(*) FROM (SELECT order_id FROM order_items GROUP BY order_id HAVING COUNT(*) > 1)"},
+
+  {"id": "q13", "difficulty": "medium", "ordered": true,
+   "question": "Which 5 product categories, in English, sold the most items? Give the English category name and the number of items sold, highest first.",
+   "gold_sql": "SELECT t.product_category_name_english, COUNT(*) AS n FROM order_items oi JOIN products p ON p.product_id = oi.product_id JOIN category_translation t ON t.product_category_name = p.product_category_name GROUP BY t.product_category_name_english ORDER BY n DESC LIMIT 5"},
+
+  {"id": "q14", "difficulty": "medium", "ordered": true,
+   "question": "Which 5 cities have the most unique customers (customer_unique_id)? Give the city and the count, highest first.",
+   "gold_sql": "SELECT customer_city, COUNT(DISTINCT customer_unique_id) AS n FROM customers GROUP BY customer_city ORDER BY n DESC LIMIT 5"},
+
+  {"id": "q15", "difficulty": "hard", "ordered": false,
+   "question": "What is the total revenue from item prices (excluding freight) for delivered orders, with 2 decimals?",
+   "gold_sql": "SELECT SUM(oi.price) FROM order_items oi JOIN orders o ON o.order_id = oi.order_id WHERE o.order_status = 'delivered'"},
+
+  {"id": "q16", "difficulty": "hard", "ordered": false,
+   "question": "For delivered orders that have a customer delivery date, what is the average number of days between purchase and delivery to the customer, with 2 decimals?",
+   "gold_sql": "SELECT AVG(julianday(order_delivered_customer_date) - julianday(order_purchase_timestamp)) FROM orders WHERE order_status = 'delivered' AND order_delivered_customer_date IS NOT NULL"},
+
+  {"id": "q17", "difficulty": "hard", "ordered": false,
+   "question": "Among delivered orders that have a customer delivery date, what percentage were late? Late means delivered on a later calendar day than the estimated delivery date. Give the percentage with 2 decimals.",
+   "gold_sql": "SELECT 100.0 * SUM(CASE WHEN date(order_delivered_customer_date) > date(order_estimated_delivery_date) THEN 1 ELSE 0 END) / COUNT(*) FROM orders WHERE order_status = 'delivered' AND order_delivered_customer_date IS NOT NULL"},
+
+  {"id": "q18", "difficulty": "hard", "ordered": true,
+   "question": "Which 5 customer states have the longest average delivery time in days (purchase to customer delivery, delivered orders with a delivery date only)? Give the state and the average, longest first.",
+   "gold_sql": "SELECT c.customer_state, AVG(julianday(o.order_delivered_customer_date) - julianday(o.order_purchase_timestamp)) AS d FROM orders o JOIN customers c ON c.customer_id = o.customer_id WHERE o.order_status = 'delivered' AND o.order_delivered_customer_date IS NOT NULL GROUP BY c.customer_state ORDER BY d DESC LIMIT 5"},
+
+  {"id": "q19", "difficulty": "hard", "ordered": false,
+   "question": "What is the average review score of late orders versus on-time orders? Late means delivered on a later calendar day than estimated. Only delivered orders with a delivery date. Give 'late' or 'on_time' and the average score.",
+   "gold_sql": "SELECT CASE WHEN date(o.order_delivered_customer_date) > date(o.order_estimated_delivery_date) THEN 'late' ELSE 'on_time' END AS status, AVG(r.review_score) FROM orders o JOIN reviews r ON r.order_id = o.order_id WHERE o.order_status = 'delivered' AND o.order_delivered_customer_date IS NOT NULL GROUP BY status"},
+
+  {"id": "q20", "difficulty": "hard", "ordered": true,
+   "question": "Which 5 sellers made the most revenue from item prices (excluding freight) on delivered orders? Give the seller_id and the revenue, highest first.",
+   "gold_sql": "SELECT oi.seller_id, SUM(oi.price) AS revenue FROM order_items oi JOIN orders o ON o.order_id = oi.order_id WHERE o.order_status = 'delivered' GROUP BY oi.seller_id ORDER BY revenue DESC LIMIT 5"}
+]

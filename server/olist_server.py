@@ -18,6 +18,7 @@ Why return dicts and not lists? See CHEATSHEET.md, "MCP gotchas".
 """
 import sqlite3
 from pathlib import Path
+import time
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
@@ -77,6 +78,8 @@ def run_sql(sql: str) -> dict:
         raise ToolError("Only SELECT and WITH ... SELECT queries are allowed.")
 
     con = _connect()
+    start = time.monotonic()
+    con.set_progress_handler(lambda: time.monotonic() - start > 10, 10000)
     try:
         cursor = con.execute(sql)
         columns = [desc[0] for desc in cursor.description]

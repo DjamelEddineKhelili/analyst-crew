@@ -16,6 +16,7 @@ import json
 import sqlite3
 import sys
 from pathlib import Path
+import time
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -30,6 +31,8 @@ def run_query(sql: str) -> list[list]:
     """Run SQL on the real DB (read-only) and return rows as lists."""
     # TODO: same read-only connection as the server. Return [list(row) for row in rows].
     con = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+    start = time.monotonic()
+    con.set_progress_handler(lambda: time.monotonic() - start > 10, 10000)
     rows = con.execute(sql).fetchall()
     con.close()
     return [list(row) for row in rows]
@@ -67,9 +70,13 @@ async def main(agent_name: str, limit: int | None):
             result = await answer(q["question"])
         # TODO 2: run gold SQL and agent SQL with run_query(). If the agent's SQL crashes -> wrong, not a crash of the eval.
         gold_rows = run_query(q["gold_sql"])
-        agent_rows = run_query(result["sql"])
-        # TODO 3: correct = results_match(gold_rows, agent_rows, ordered=q["ordered"])
-        correct = results_match(gold_rows, agent_rows, ordered=q["ordered"])
+        error = None
+        try:
+            agent_rows = run_query(result["sql"])
+            correct = results_match(gold_rows, agent_rows, ordered=q["ordered"])
+        except Exception as e:
+            error = str(e)
+            correct = False
         # TODO 4: print one line per question: ✅/❌ id, question, llm_calls
         status = "✅" if correct else "❌"
         print(f"{status} {q['id']}: {q['question']} ({result.get("llm_calls", 0)} LLM calls)")
@@ -78,9 +85,17 @@ async def main(agent_name: str, limit: int | None):
             "id": q["id"],
             "correct": correct,
             "agent_sql": result["sql"],
-            "error": result.get("error"),
-            "llm_calls": result.get("llm_calls", 0)
+            "error": error or result.get("error"),
+            "llm_calls": result.get("llm_calls", 0),
+            "steps": result.get("steps"),
+            "answer": result.get("answer"),
         })
+        RUNS.mkdir(exist_ok=True)
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        output_file = RUNS / f"{agent_name}-{timestamp}.json"
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(results, f, indent=2)   
 
     # TODO 6: print the final score: X/N correct (Y%), total LLM calls.
     total = len(results)

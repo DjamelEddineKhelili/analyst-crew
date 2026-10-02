@@ -38,7 +38,14 @@ def build():
         df = pd.read_csv(RAW / csv_name)
         df.to_sql(table, con, index=False)
         print(len(df), "rows loaded into", table)
-    
+    for table, column in [("orders", "order_id"), ("orders", "customer_id"),
+                          ("order_items", "order_id"), ("order_items", "product_id"), ("order_items", "seller_id"),
+                          ("order_payments", "order_id"), ("reviews", "order_id"),
+                          ("customers", "customer_id"), ("customers", "customer_unique_id"),
+                          ("products", "product_id"), ("sellers", "seller_id")]:
+        con.execute(f"CREATE INDEX idx_{table}_{column} ON {table}({column})")
+    print("indexes created")
+
     con.close()
     
 

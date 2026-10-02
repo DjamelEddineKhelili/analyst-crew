@@ -44,9 +44,11 @@ async def answer(question: str) -> dict:
     async with McpTools(SERVER) as tools:
         dcls = tools.gemini_declarations()
         history = [{"role": "user", "text": question}]
+        steps = []
         for step in range(1, MAX_STEPS + 1):
             reply = llm.chat(SYSTEM_PROMPT, history, dcls)
             history.append({"role": "assistant", "text": reply.text, "calls": reply.calls, "raw": reply.raw})
+            
             #If there are no calls, you're done: break.
             if not reply.calls:
                 break
@@ -54,9 +56,10 @@ async def answer(question: str) -> dict:
             results = []
             for call in reply.calls:
                 result = await tools.call(call.name, call.args)
+                steps.append({"tool": call.name, "args": call.args, "error": result.get("error")})
                 results.append({"id": call.id, "name": call.name, "result": result})
             history.append({"role": "tool_results", "results": results})  
         blocks = re.findall(r"```sql(.*?)```", reply.text, re.DOTALL)
         sql = blocks[-1].strip() if blocks else ""
     
-    return {"sql": sql, "answer": reply.text, "llm_calls": llm.calls}
+    return {"sql": sql, "answer": reply.text, "llm_calls": llm.calls, "steps": steps}
