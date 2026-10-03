@@ -145,7 +145,7 @@ def parse_verdict(text):
 
 async def answer(question: str) -> dict:
     """Same contract as agent/single.py: returns {"sql", "answer", "llm_calls", "steps", ...}."""
-    llm = GeminiLLM(model="gemini-3.1-flash-lite")                                   # ONE llm for the whole crew -> llm.calls = total cost of the crew
+    llm = GeminiLLM()                                   # ONE llm for the whole crew -> llm.calls = total cost of the crew
     steps = []                                          # one shared log for all roles (each entry says which role)
     critiques = []                                      # every Critic verdict, kept for the failure analysis
 

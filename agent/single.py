@@ -40,7 +40,7 @@ async def answer(question: str) -> dict:
       4. return the dict
     """
     # TODO
-    llm = GeminiLLM(model="gemini-3.1-flash-lite")
+    llm = GeminiLLM()
     async with McpTools(SERVER) as tools:
         dcls = tools.gemini_declarations()
         history = [{"role": "user", "text": question}]
@@ -61,5 +61,10 @@ async def answer(question: str) -> dict:
             history.append({"role": "tool_results", "results": results})  
         blocks = re.findall(r"```sql(.*?)```", reply.text, re.DOTALL)
         sql = blocks[-1].strip() if blocks else ""
+        if not sql:
+            for s in reversed(steps):
+                if s["tool"] == "run_sql" and not s.get("error"):
+                    sql = s["args"].get("sql", "").strip()
+                    break
     
     return {"sql": sql, "answer": reply.text, "llm_calls": llm.calls, "steps": steps}
