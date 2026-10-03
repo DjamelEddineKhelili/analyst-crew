@@ -1,4 +1,12 @@
 [
+  {"id": "h01", "difficulty": "hard", "ordered": true,
+   "question": "Who are our 5 most valuable customers? Give their unique customer id and the total amount they paid, highest first.",
+   "gold_sql": "SELECT c.customer_unique_id, SUM(p.payment_value) AS total FROM customers c JOIN orders o ON o.customer_id = c.customer_id JOIN order_payments p ON p.order_id = o.order_id GROUP BY c.customer_unique_id ORDER BY total DESC LIMIT 5"},
+
+  {"id": "h02", "difficulty": "hard", "ordered": false,
+   "question": "How many customers ordered more than once?",
+   "gold_sql": "SELECT COUNT(*) FROM (SELECT c.customer_unique_id FROM customers c JOIN orders o ON o.customer_id = c.customer_id GROUP BY c.customer_unique_id HAVING COUNT(DISTINCT o.order_id) > 1)"},
+
   {"id": "h03", "difficulty": "hard", "ordered": false,
    "question": "What percentage of our revenue (item prices) comes from repeat customers, meaning customers who placed more than one order?",
    "gold_sql": "WITH rep AS (SELECT c.customer_unique_id FROM customers c JOIN orders o ON o.customer_id = c.customer_id GROUP BY c.customer_unique_id HAVING COUNT(DISTINCT o.order_id) > 1) SELECT 100.0 * SUM(CASE WHEN c.customer_unique_id IN (SELECT customer_unique_id FROM rep) THEN oi.price ELSE 0 END) / SUM(oi.price) FROM order_items oi JOIN orders o ON o.order_id = oi.order_id JOIN customers c ON c.customer_id = o.customer_id"},
@@ -41,5 +49,13 @@
 
   {"id": "h13", "difficulty": "hard", "ordered": true,
    "question": "Which 5 customer cities generate the most revenue from item prices on delivered orders? Give the city and the revenue, highest first.",
-   "gold_sql": "SELECT c.customer_city, SUM(oi.price) AS revenue FROM order_items oi JOIN orders o ON o.order_id = oi.order_id JOIN customers c ON c.customer_id = o.customer_id WHERE o.order_status = 'delivered' GROUP BY c.customer_city ORDER BY revenue DESC LIMIT 5"}
+   "gold_sql": "SELECT c.customer_city, SUM(oi.price) AS revenue FROM order_items oi JOIN orders o ON o.order_id = oi.order_id JOIN customers c ON c.customer_id = o.customer_id WHERE o.order_status = 'delivered' GROUP BY c.customer_city ORDER BY revenue DESC LIMIT 5"},
+
+  {"id": "h14", "difficulty": "hard", "ordered": false,
+   "question": "Do slow deliveries get worse reviews? For delivered orders, give the average review score for orders that took more than 20 days from purchase to delivery (label 'slow') and for the others (label 'fast').",
+   "gold_sql": "SELECT CASE WHEN julianday(o.order_delivered_customer_date) - julianday(o.order_purchase_timestamp) > 20 THEN 'slow' ELSE 'fast' END AS speed, AVG(r.review_score) FROM orders o JOIN reviews r ON r.order_id = o.order_id WHERE o.order_status = 'delivered' AND o.order_delivered_customer_date IS NOT NULL GROUP BY speed"},
+
+  {"id": "h15", "difficulty": "hard", "ordered": false,
+   "question": "What percentage of sellers have sold at least once to a customer in a different state than their own?",
+   "gold_sql": "SELECT 100.0 * COUNT(DISTINCT CASE WHEN s.seller_state <> c.customer_state THEN s.seller_id END) / COUNT(DISTINCT s.seller_id) FROM order_items oi JOIN sellers s ON s.seller_id = oi.seller_id JOIN orders o ON o.order_id = oi.order_id JOIN customers c ON c.customer_id = o.customer_id"}
 ]

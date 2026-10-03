@@ -40,7 +40,7 @@ async def answer(question: str) -> dict:
       4. return the dict
     """
     # TODO
-    llm = GeminiLLM()
+    llm = GeminiLLM(model="gemini-3.1-flash-lite")
     async with McpTools(SERVER) as tools:
         dcls = tools.gemini_declarations()
         history = [{"role": "user", "text": question}]

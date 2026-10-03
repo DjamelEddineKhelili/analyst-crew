@@ -1,0 +1,16 @@
+[
+  {
+    "id": "q01",
+    "correct": true,
+    "agent_sql": "SELECT COUNT(*) FROM orders WHERE order_status = 'delivered'",
+    "error": null,
+    "llm_calls": 0
+  },
+  {
+    "id": "q02",
+    "correct": true,
+    "agent_sql": "SELECT c.customer_state, COUNT(*) AS n FROM orders o JOIN customers c ON c.customer_id = o.customer_id GROUP BY c.customer_state ORDER BY n DESC LIMIT 5",
+    "error": null,
+    "llm_calls": 0
+  }
+]

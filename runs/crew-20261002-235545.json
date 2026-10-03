@@ -1,0 +1,999 @@
+[
+  {
+    "id": "h03",
+    "correct": true,
+    "agent_sql": "WITH customer_order_counts AS (\n  SELECT c.customer_unique_id, COUNT(DISTINCT o.order_id) as order_count\n  FROM customers c\n  JOIN orders o ON c.customer_id = o.customer_id\n  GROUP BY c.customer_unique_id\n),\nitem_customer AS (\n  SELECT oi.price, coc.order_count\n  FROM order_items oi\n  JOIN orders o ON oi.order_id = o.order_id\n  JOIN customers c ON o.customer_id = c.customer_id\n  JOIN customer_order_counts coc ON c.customer_unique_id = coc.customer_unique_id\n)\nSELECT \n  SUM(CASE WHEN order_count > 1 THEN price ELSE 0 END) * 100.0 / SUM(price) AS repeat_customer_revenue_percentage\nFROM item_customer",
+    "error": null,
+    "llm_calls": 12,
+    "steps": [
+      {
+        "role": "planner",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "orders"
+        },
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_items"
+        },
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "customers"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "customers"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "orders"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_items"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "run_sql",
+        "args": {
+          "sql": "\nSELECT \n  SUM(CASE WHEN order_counts.order_count > 1 THEN oi.price ELSE 0.0 END) * 100.0 / SUM(oi.price) AS repeat_customer_revenue_pct\nFROM order_items oi\nJOIN orders o ON oi.order_id = o.order_id\nJOIN (\n  SELECT customer_unique_id, COUNT(DISTINCT order_id) AS order_count\n  FROM orders o2\n  JOIN customers c2 ON o2.customer_id = c2.customer_id\n  GROUP BY customer_unique_id\n) order_counts ON o.customer_id IN (\n  SELECT customer_id FROM customers WHERE customer_unique_id = order_counts.customer_unique_id\n)\n"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "run_sql",
+        "args": {
+          "sql": "\nWITH customer_order_counts AS (\n  SELECT c.customer_unique_id, COUNT(DISTINCT o.order_id) as order_count\n  FROM customers c\n  JOIN orders o ON c.customer_id = o.customer_id\n  GROUP BY c.customer_unique_id\n),\nitem_customer AS (\n  SELECT oi.price, coc.order_count\n  FROM order_items oi\n  JOIN orders o ON oi.order_id = o.order_id\n  JOIN customers c ON o.customer_id = c.customer_id\n  JOIN customer_order_counts coc ON c.customer_unique_id = coc.customer_unique_id\n)\nSELECT \n  ROUND(\n    SUM(CASE WHEN order_count > 1 THEN price ELSE 0 END) * 100.0 / SUM(price),\n    10\n  ) AS repeat_customer_revenue_percentage\nFROM item_customer\n"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT \n  (SELECT COUNT(*) FROM (\n    SELECT oi.price, coc.order_count\n    FROM order_items oi\n    JOIN orders o ON oi.order_id = o.order_id\n    JOIN customers c ON o.customer_id = c.customer_id\n    JOIN (\n      SELECT c.customer_unique_id, COUNT(DISTINCT o.order_id) as order_count\n      FROM customers c\n      JOIN orders o ON c.customer_id = o.customer_id\n      GROUP BY c.customer_unique_id\n    ) coc ON c.customer_unique_id = coc.customer_unique_id\n  )) AS count_star,\n  (SELECT COUNT(DISTINCT order_item_id) FROM order_items) AS count_distinct_items"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_items"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT \n  (SELECT COUNT(*) FROM (\n    SELECT oi.price, coc.order_count\n    FROM order_items oi\n    JOIN orders o ON oi.order_id = o.order_id\n    JOIN customers c ON o.customer_id = c.customer_id\n    JOIN (\n      SELECT c.customer_unique_id, COUNT(DISTINCT o.order_id) as order_count\n      FROM customers c\n      JOIN orders o ON c.customer_id = o.customer_id\n      GROUP BY c.customer_unique_id\n    ) coc ON c.customer_unique_id = coc.customer_unique_id\n  )) AS count_star,\n  (SELECT COUNT(*) FROM order_items) AS count_order_items"
+        },
+        "error": null
+      }
+    ],
+    "plan": "UNIT: one order item (price sum), grouped by whether its customer (`customer_unique_id`) placed more than 1 order.\nTABLES: `customers` (joins `orders` on `customer_id`), `orders` (joins `order_items` on `order_id`).\nDEFINITIONS: Repeat customers are `customer_unique_id` values with `COUNT(DISTINCT order_id) > 1`. Revenue is the sum of `price` from `order_items`.\nRESULT SHAPE: 1 row, 1 column: the percentage of total item price revenue coming from repeat customers.",
+    "critiques": [
+      {
+        "attempt": 0,
+        "ok": true,
+        "reason": "COUNT(*) is 112650 and matches COUNT(DISTINCT order_item_id) on the order items grain, confirming no row duplication."
+      }
+    ],
+    "answer": "```sql\nWITH customer_order_counts AS (\n  SELECT c.customer_unique_id, COUNT(DISTINCT o.order_id) as order_count\n  FROM customers c\n  JOIN orders o ON c.customer_id = o.customer_id\n  GROUP BY c.customer_unique_id\n),\nitem_customer AS (\n  SELECT oi.price, coc.order_count\n  FROM order_items oi\n  JOIN orders o ON oi.order_id = o.order_id\n  JOIN customers c ON o.customer_id = c.customer_id\n  JOIN customer_order_counts coc ON c.customer_unique_id = coc.customer_unique_id\n)\nSELECT \n  SUM(CASE WHEN order_count > 1 THEN price ELSE 0 END) * 100.0 / SUM(price) AS repeat_customer_revenue_percentage\nFROM item_customer\n```"
+  },
+  {
+    "id": "h04",
+    "correct": true,
+    "agent_sql": "SELECT \n    t.product_category_name_english,\n    AVG(r.review_score) AS avg_score\nFROM reviews r\nJOIN (\n    SELECT order_id, MIN(product_id) AS product_id\n    FROM order_items\n    GROUP BY order_id\n) oi ON r.order_id = oi.order_id\nJOIN products p ON oi.product_id = p.product_id\nJOIN category_translation t ON p.product_category_name = t.product_category_name\nGROUP BY t.product_category_name_english\nHAVING COUNT(r.review_id) >= 100\nORDER BY avg_score ASC\nLIMIT 1;",
+    "error": null,
+    "llm_calls": 23,
+    "steps": [
+      {
+        "role": "planner",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "reviews"
+        },
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_items"
+        },
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "products"
+        },
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "category_translation"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "reviews"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_items"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "products"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "category_translation"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "run_sql",
+        "args": {
+          "sql": "\nSELECT \n    t.product_category_name_english,\n    AVG(r.review_score) AS avg_score\nFROM reviews r\nJOIN order_items oi ON r.order_id = oi.order_id\nJOIN products p ON oi.product_id = p.product_id\nJOIN category_translation t ON p.product_category_name = t.product_category_name\nGROUP BY t.product_category_name_english\nHAVING COUNT(r.review_id) >= 100\nORDER BY avg_score ASC\nLIMIT 1;\n"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT \n    COUNT(*), \n    COUNT(DISTINCT r.review_id)\nFROM reviews r\nJOIN order_items oi ON r.order_id = oi.order_id\nJOIN products p ON oi.product_id = p.product_id\nJOIN category_translation t ON p.product_category_name = t.product_category_name"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "reviews"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_items"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "products"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "category_translation"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT \n    t.product_category_name_english,\n    AVG(r.review_score) AS avg_score\nFROM reviews r\nJOIN (\n    SELECT DISTINCT order_id, product_id \n    FROM order_items\n) oi ON r.order_id = oi.order_id\nJOIN products p ON oi.product_id = p.product_id\nJOIN category_translation t ON p.product_category_name = t.product_category_name\nGROUP BY t.product_category_name_english\nHAVING COUNT(DISTINCT r.review_id) >= 100\nORDER BY avg_score ASC\nLIMIT 1;"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "run_sql",
+        "args": {
+          "sql": "WITH order_main_product AS (\n    SELECT order_id, product_id,\n           ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY order_item_id) as rn\n    FROM order_items\n)\nSELECT \n    t.product_category_name_english,\n    AVG(r.review_score) AS avg_score\nFROM reviews r\nJOIN order_main_product oi ON r.order_id = oi.order_id AND oi.rn = 1\nJOIN products p ON oi.product_id = p.product_id\nJOIN category_translation t ON p.product_category_name = t.product_category_name\nGROUP BY t.product_category_name_english\nHAVING COUNT(r.review_id) >= 100\nORDER BY avg_score ASC\nLIMIT 1;"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT \n    t.product_category_name_english,\n    AVG(r.review_score) AS avg_score\nFROM reviews r\nJOIN (\n    SELECT order_id, MIN(product_id) AS product_id\n    FROM order_items\n    GROUP BY order_id\n) oi ON r.order_id = oi.order_id\nJOIN products p ON oi.product_id = p.product_id\nJOIN category_translation t ON p.product_category_name = t.product_category_name\nGROUP BY t.product_category_name_english\nHAVING COUNT(r.review_id) >= 100\nORDER BY avg_score ASC\nLIMIT 1;"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT COUNT(*), COUNT(DISTINCT r.review_id) FROM reviews r JOIN order_items oi ON r.order_id = oi.order_id JOIN products p ON oi.product_id = p.product_id JOIN category_translation t ON p.product_category_name = t.product_category_name"
+        },
+        "error": null
+      }
+    ],
+    "plan": "UNIT: one product review mapped to its product category (orders can have multiple items/reviews, so join reviews to order_items on order_id, products on product_id, and category_translation on product_category_name).\nTABLES: reviews, order_items, products, category_translation\nDEFINITIONS: \"worst customer satisfaction\" = lowest average review score; \"at least 100 reviews\" = COUNT(review_id) >= 100 per category.\nRESULT SHAPE: 1 row, 2 columns: English category name (product_category_name_english) and its average review score (AVG(review_score)).",
+    "critiques": [
+      {
+        "attempt": 0,
+        "ok": false,
+        "reason": "The grain check shows 110,750 total rows versus 96,320 distinct reviews because joining order_items duplicates reviews when orders have multiple items."
+      },
+      {
+        "attempt": 1,
+        "ok": false,
+        "reason": "The grain check shows 110,750 total joined rows versus 96,320 distinct review_ids, proving that subquerying MIN(product_id) on order_items still duplicates reviews when orders have multiple items. Change the join from order_reviews directly to order_items per review_id, or join reviews and order_items on order_id and product_id if order_items has a review reference, or properly aggregate review scores per order/item before grouping by category."
+      }
+    ],
+    "answer": "```sql\nSELECT \n    t.product_category_name_english,\n    AVG(r.review_score) AS avg_score\nFROM reviews r\nJOIN (\n    SELECT order_id, MIN(product_id) AS product_id\n    FROM order_items\n    GROUP BY order_id\n) oi ON r.order_id = oi.order_id\nJOIN products p ON oi.product_id = p.product_id\nJOIN category_translation t ON p.product_category_name = t.product_category_name\nGROUP BY t.product_category_name_english\nHAVING COUNT(r.review_id) >= 100\nORDER BY avg_score ASC\nLIMIT 1;\n```"
+  },
+  {
+    "id": "h05",
+    "correct": false,
+    "agent_sql": "SELECT \n    STRFTIME('%Y', order_purchase_timestamp) AS purchase_year,\n    COUNT(*) AS total_delivered,\n    SUM(CASE WHEN order_delivered_customer_date > order_estimated_delivery_date THEN 1 ELSE 0 END) AS late_count,\n    ROUND(CAST(SUM(CASE WHEN order_delivered_customer_date > order_estimated_delivery_date THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(*), 4) AS late_delivery_rate_pct\nFROM orders\nWHERE order_status = 'delivered' \n  AND order_delivered_customer_date IS NOT NULL\nGROUP BY purchase_year\nORDER BY purchase_year;",
+    "error": null,
+    "llm_calls": 9,
+    "steps": [
+      {
+        "role": "planner",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "orders"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "orders"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "run_sql",
+        "args": {
+          "sql": "\nSELECT \n    STRFTIME('%Y', order_purchase_timestamp) AS purchase_year,\n    COUNT(*) AS total_delivered,\n    SUM(CASE WHEN order_delivered_customer_date > order_estimated_delivery_date THEN 1 ELSE 0 END) AS late_count,\n    ROUND(CAST(SUM(CASE WHEN order_delivered_customer_date > order_estimated_delivery_date THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(*), 4) AS late_delivery_rate_pct\nFROM orders\nWHERE order_status = 'delivered' \n  AND order_delivered_customer_date IS NOT NULL\nGROUP BY purchase_year\nORDER BY purchase_year;\n"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT COUNT(*), COUNT(DISTINCT order_id) FROM orders WHERE order_status = 'delivered' AND order_delivered_customer_date IS NOT NULL;"
+        },
+        "error": null
+      }
+    ],
+    "plan": "UNIT: one delivered order (`order_id` in the `orders` table with status 'delivered').\nTABLES: `orders` table only.\nDEFINITIONS: \n- Delivered orders: `order_status = 'delivered'` AND `order_delivered_customer_date IS NOT NULL`.\n- Late delivery: `order_delivered_customer_date > order_estimated_delivery_date`.\n- Year of purchase: extracted from `order_purchase_timestamp`.\n- Late delivery rate: (number of late delivered orders / total delivered orders) * 100 for each year.\nRESULT SHAPE: 1 row per year of purchase (e.g. 2016, 2017, 2018), with columns `purchase_year`, `total_delivered`, `late_count`, and `late_delivery_rate_pct`.",
+    "critiques": [
+      {
+        "attempt": 0,
+        "ok": true,
+        "reason": "Grain check shows COUNT(*) equals COUNT(DISTINCT order_id) (96470 for both), confirming 1 row per delivered order without duplication."
+      }
+    ],
+    "answer": "```sql\nSELECT \n    STRFTIME('%Y', order_purchase_timestamp) AS purchase_year,\n    COUNT(*) AS total_delivered,\n    SUM(CASE WHEN order_delivered_customer_date > order_estimated_delivery_date THEN 1 ELSE 0 END) AS late_count,\n    ROUND(CAST(SUM(CASE WHEN order_delivered_customer_date > order_estimated_delivery_date THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(*), 4) AS late_delivery_rate_pct\nFROM orders\nWHERE order_status = 'delivered' \n  AND order_delivered_customer_date IS NOT NULL\nGROUP BY purchase_year\nORDER BY purchase_year;\n```"
+  },
+  {
+    "id": "h06",
+    "correct": true,
+    "agent_sql": "SELECT \n    strftime('%Y-%m', o.order_purchase_timestamp) AS month,\n    SUM(i.price) AS total_revenue\nFROM orders o\nJOIN order_items i ON o.order_id = i.order_id\nGROUP BY month\nORDER BY total_revenue DESC\nLIMIT 1;",
+    "error": null,
+    "llm_calls": 11,
+    "steps": [
+      {
+        "role": "planner",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_items"
+        },
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "orders"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "orders"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_items"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT \n    strftime('%Y-%m', o.order_purchase_timestamp) AS month,\n    SUM(i.price) AS total_revenue\nFROM orders o\nJOIN order_items i ON o.order_id = i.order_id\nGROUP BY month\nORDER BY total_revenue DESC\nLIMIT 1;"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT COUNT(*), COUNT(DISTINCT i.order_id || '-' + i.order_item_id) FROM orders o JOIN order_items i ON o.order_id = i.order_id"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT COUNT(*), COUNT(DISTINCT i.order_id || '-' || i.order_item_id) FROM orders o JOIN order_items i ON o.order_id = i.order_id"
+        },
+        "error": null
+      }
+    ],
+    "plan": "UNIT: one order item (`order_items` row), aggregated by the purchase month of the order.\nTABLES: `orders` joined with `order_items` on `order_id`.\nDEFINITIONS: \"Revenue from item prices\" is the sum of `order_items.price` (excluding freight). Month is extracted from `orders.order_purchase_timestamp` formatted as `YYYY-MM`.\nRESULT SHAPE: 1 row, 2 columns (`month`, `total_revenue`).",
+    "critiques": [
+      {
+        "attempt": 0,
+        "ok": true,
+        "reason": "The grain check confirms that COUNT(*) equals COUNT(DISTINCT order_id || '-' || order_item_id) (112650 rows), proving each row is a unique order item matching the unit in the plan."
+      }
+    ],
+    "answer": "```sql\nSELECT \n    strftime('%Y-%m', o.order_purchase_timestamp) AS month,\n    SUM(i.price) AS total_revenue\nFROM orders o\nJOIN order_items i ON o.order_id = i.order_id\nGROUP BY month\nORDER BY total_revenue DESC\nLIMIT 1;\n```"
+  },
+  {
+    "id": "h07",
+    "correct": true,
+    "agent_sql": "SELECT\n  seller_id,\n  SUM(freight_value) / SUM(price) AS ratio\nFROM order_items\nGROUP BY seller_id\nHAVING COUNT(order_item_id) >= 50\nORDER BY ratio DESC\nLIMIT 5;",
+    "error": null,
+    "llm_calls": 10,
+    "steps": [
+      {
+        "role": "planner",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_items"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_items"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT\n  seller_id,\n  SUM(freight_value) / SUM(price) AS ratio\nFROM order_items\nGROUP BY seller_id\nHAVING COUNT(order_item_id) >= 50\nORDER BY ratio DESC\nLIMIT 5;\n"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT COUNT(*) FROM order_items;"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT COUNT(DISTINCT seller_id), COUNT(*) FROM order_items;"
+        },
+        "error": null
+      }
+    ],
+    "plan": "UNIT: one order item (row in order_items), but filtered and aggregated per seller.\nTABLES: order_items table grouped by seller_id.\nDEFINITIONS: \"freight cost relative to the price\" = SUM(freight_value) / SUM(price) across all items sold by the seller; \"items sold\" = COUNT(order_item_id) >= 50.\nRESULT SHAPE: 5 rows, 2 columns (seller_id, ratio).",
+    "critiques": [
+      {
+        "attempt": 0,
+        "ok": true,
+        "reason": "The grain check confirms order_items is correctly grouped by seller_id, with 3095 unique sellers, and the ratio calculation and HAVING clause match the plan."
+      }
+    ],
+    "answer": "```sql\nSELECT\n  seller_id,\n  SUM(freight_value) / SUM(price) AS ratio\nFROM order_items\nGROUP BY seller_id\nHAVING COUNT(order_item_id) >= 50\nORDER BY ratio DESC\nLIMIT 5;\n```"
+  },
+  {
+    "id": "h08",
+    "correct": true,
+    "agent_sql": "WITH order_freight AS (\n    SELECT \n        o.order_id,\n        c.customer_state,\n        SUM(oi.freight_value) AS total_freight\n    FROM orders o\n    JOIN customers c ON o.customer_id = c.customer_id\n    JOIN order_items oi ON o.order_id = oi.order_id\n    GROUP BY o.order_id, c.customer_state\n)\nSELECT \n    customer_state,\n    AVG(total_freight) AS avg_freight\nFROM order_freight\nGROUP BY customer_state\nORDER BY avg_freight DESC\nLIMIT 1;",
+    "error": null,
+    "llm_calls": 13,
+    "steps": [
+      {
+        "role": "planner",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "customers"
+        },
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "orders"
+        },
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_items"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "customers"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "orders"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_items"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "run_sql",
+        "args": {
+          "sql": "\nWITH order_freight AS (\n    SELECT \n        o.order_id,\n        c.customer_state,\n        SUM(oi.freight_value) AS total_freight\n    FROM orders o\n    JOIN customers c ON o.customer_id = c.customer_id\n    JOIN order_items oi ON o.order_id = oi.order_id\n    GROUP BY o.order_id, c.customer_state\n)\nSELECT \n    customer_state,\n    AVG(total_freight) AS avg_freight\nFROM order_freight\nGROUP BY customer_state\nORDER BY avg_freight DESC\nLIMIT 1;\n"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT COUNT(*) AS total_rows, COUNT(DISTINCT order_id) AS distinct_orders FROM (\n    SELECT \n        o.order_id,\n        c.customer_state,\n        SUM(oi.freight_value) AS total_freight\n    FROM orders o\n    JOIN customers c ON o.customer_id = c.customer_id\n    JOIN order_items oi ON o.order_id = oi.order_id\n    GROUP BY o.order_id, c.customer_state\n);"
+        },
+        "error": null
+      }
+    ],
+    "plan": "UNIT: one order (summing freight_value per order_id if multiple items, or aggregating freight per order first).\nTABLES: customers joined to orders on customer_id, and orders joined to order_items on order_id.\nDEFINITIONS: \"average freight per order\" is the mean of total freight_value per order, grouped by customer state (`customer_state`), ordered descending to find the highest.\nRESULT SHAPE: 1 row, 2 columns: `customer_state`, and the average freight per order.",
+    "critiques": [
+      {
+        "attempt": 0,
+        "ok": true,
+        "reason": "The grain check confirms 98,666 total rows match 98,666 distinct order_ids in the CTE, correctly computing the average freight per order grouped by customer state."
+      }
+    ],
+    "answer": "```sql\nWITH order_freight AS (\n    SELECT \n        o.order_id,\n        c.customer_state,\n        SUM(oi.freight_value) AS total_freight\n    FROM orders o\n    JOIN customers c ON o.customer_id = c.customer_id\n    JOIN order_items oi ON o.order_id = oi.order_id\n    GROUP BY o.order_id, c.customer_state\n)\nSELECT \n    customer_state,\n    AVG(total_freight) AS avg_freight\nFROM order_freight\nGROUP BY customer_state\nORDER BY avg_freight DESC\nLIMIT 1;\n```"
+  },
+  {
+    "id": "h09",
+    "correct": true,
+    "agent_sql": "SELECT \n  CAST(SUM(CASE WHEN max_installments > 1 THEN 1 ELSE 0 END) AS REAL) * 100.0 / COUNT(*) AS percentage_multi_installment\nFROM (\n  SELECT order_id, MAX(payment_installments) AS max_installments\n  FROM order_payments\n  GROUP BY order_id\n);",
+    "error": null,
+    "llm_calls": 10,
+    "steps": [
+      {
+        "role": "planner",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_payments"
+        },
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "orders"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_payments"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT \n  CAST(SUM(CASE WHEN max_installments > 1 THEN 1 ELSE 0 END) AS REAL) * 100.0 / COUNT(*) AS percentage_multi_installment\nFROM (\n  SELECT order_id, MAX(payment_installments) AS max_installments\n  FROM order_payments\n  GROUP BY order_id\n);"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT COUNT(*), COUNT(DISTINCT order_id) FROM (SELECT order_id, MAX(payment_installments) AS max_installments FROM order_payments GROUP BY order_id);"
+        },
+        "error": null
+      }
+    ],
+    "plan": "UNIT: one order payment record or one order aggregated by max installments (since an order can have multiple payment rows/methods, but maximum installments across payment rows for an order represents whether it was paid in more than one installment).\nTABLES: order_payments table (grouped by order_id to find max(payment_installments)).\nDEFINITIONS: \"paid in more than one installment\" means max(payment_installments) > 1 per order.\nRESULT SHAPE: 1 row, 1 column: a percentage.",
+    "critiques": [
+      {
+        "attempt": 0,
+        "ok": true,
+        "reason": "The grain check on the derived table shows COUNT(*) equals COUNT(DISTINCT order_id) at 99,440 rows, confirming there are no duplicate orders and the percentage is correctly calculated per unique order."
+      }
+    ],
+    "answer": "```sql\nSELECT \n  CAST(SUM(CASE WHEN max_installments > 1 THEN 1 ELSE 0 END) AS REAL) * 100.0 / COUNT(*) AS percentage_multi_installment\nFROM (\n  SELECT order_id, MAX(payment_installments) AS max_installments\n  FROM order_payments\n  GROUP BY order_id\n);\n```"
+  },
+  {
+    "id": "h10",
+    "correct": true,
+    "agent_sql": "SELECT count(*) FROM (SELECT order_id FROM order_payments GROUP BY order_id HAVING count(DISTINCT payment_type) > 1)",
+    "error": null,
+    "llm_calls": 9,
+    "steps": [
+      {
+        "role": "planner",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_payments"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_payments"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT count(*) FROM (SELECT order_id FROM order_payments GROUP BY order_id HAVING count(DISTINCT payment_type) > 1)"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT COUNT(*) AS total_rows, COUNT(DISTINCT order_id) AS distinct_orders FROM (SELECT order_id FROM order_payments GROUP BY order_id HAVING count(DISTINCT payment_type) > 1)"
+        },
+        "error": null
+      }
+    ],
+    "plan": "UNIT: one order (order_id)\nTABLES: order_payments table, grouped by order_id\nDEFINITIONS: \"paid with more than one payment method\" means having more than 1 distinct payment type (or payment_sequential > 1, or count(payment_type) > 1 per order_id)\nRESULT SHAPE: 1 row, 1 column: the count of such orders",
+    "critiques": [
+      {
+        "attempt": 0,
+        "ok": true,
+        "reason": "The grain check shows total rows (2246) equals distinct order_ids (2246), confirming the count is correctly at the order grain."
+      }
+    ],
+    "answer": "```sql\nSELECT count(*) FROM (SELECT order_id FROM order_payments GROUP BY order_id HAVING count(DISTINCT payment_type) > 1)\n```"
+  },
+  {
+    "id": "h11",
+    "correct": false,
+    "agent_sql": "SELECT strftime('%w', order_purchase_timestamp) AS day_of_week, COUNT(*) AS order_count\nFROM orders\nGROUP BY day_of_week\nORDER BY order_count DESC\nLIMIT 1;",
+    "error": null,
+    "llm_calls": 9,
+    "steps": [
+      {
+        "role": "planner",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "orders"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "orders"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT strftime('%w', order_purchase_timestamp) AS dow, COUNT(*) AS cnt\nFROM orders\nGROUP BY dow\nORDER BY cnt DESC\nLIMIT 1;"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT COUNT(*), COUNT(DISTINCT order_id) FROM orders;"
+        },
+        "error": null
+      }
+    ],
+    "plan": "UNIT: one order (`order_id` in `orders`), no deduplication needed.\nTABLES: `orders` table only.\nDEFINITIONS: Day of the week is derived from `order_purchase_timestamp`. In SQLite, `strftime('%w', order_purchase_timestamp)` returns 0 for Sunday through 6 for Saturday.\nRESULT SHAPE: 1 row, 2 columns: day of the week as a number (0-6) and the count of orders.",
+    "critiques": [
+      {
+        "attempt": 0,
+        "ok": true,
+        "reason": "Grain check shows COUNT(*) equals COUNT(DISTINCT order_id) at 99,441 rows in the orders table, confirming 1:1 order-level grouping without duplicates."
+      }
+    ],
+    "answer": "```sql\nSELECT strftime('%w', order_purchase_timestamp) AS day_of_week, COUNT(*) AS order_count\nFROM orders\nGROUP BY day_of_week\nORDER BY order_count DESC\nLIMIT 1;\n```"
+  },
+  {
+    "id": "h12",
+    "correct": true,
+    "agent_sql": "WITH ordered_customer_purchases AS (\n    SELECT \n        c.customer_unique_id,\n        o.order_purchase_timestamp,\n        ROW_NUMBER() OVER(PARTITION BY c.customer_unique_id ORDER BY o.order_purchase_timestamp ASC) as rn\n    FROM orders o\n    JOIN customers c ON o.customer_id = c.customer_id\n),\nfirst_two_orders AS (\n    SELECT \n        customer_unique_id,\n        MAX(CASE WHEN rn = 1 THEN order_purchase_timestamp END) as first_order,\n        MAX(CASE WHEN rn = 2 THEN order_purchase_timestamp END) as second_order\n    FROM ordered_customer_purchases\n    WHERE rn <= 2\n    GROUP BY customer_unique_id\n    HAVING COUNT(*) >= 2\n)\nSELECT \n    AVG(julianday(second_order) - julianday(first_order)) as avg_days_between\nFROM first_two_orders;",
+    "error": null,
+    "llm_calls": 10,
+    "steps": [
+      {
+        "role": "planner",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "orders"
+        },
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "customers"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "orders"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "customers"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "run_sql",
+        "args": {
+          "sql": "\nWITH ordered_customer_purchases AS (\n    SELECT \n        c.customer_unique_id,\n        o.order_purchase_timestamp,\n        ROW_NUMBER() OVER(PARTITION BY c.customer_unique_id ORDER BY o.order_purchase_timestamp ASC) as rn\n    FROM orders o\n    JOIN customers c ON o.customer_id = c.customer_id\n),\nfirst_two_orders AS (\n    SELECT \n        customer_unique_id,\n        MAX(CASE WHEN rn = 1 THEN order_purchase_timestamp END) as first_order,\n        MAX(CASE WHEN rn = 2 THEN order_purchase_timestamp END) as second_order\n    FROM ordered_customer_purchases\n    WHERE rn <= 2\n    GROUP BY customer_unique_id\n    HAVING COUNT(*) >= 2\n)\nSELECT \n    AVG(julianday(second_order) - julianday(first_order)) as avg_days_between\nFROM first_two_orders;\n"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT \n    (SELECT COUNT(*) FROM (\n        WITH ordered_customer_purchases AS (\n            SELECT \n                c.customer_unique_id,\n                o.order_purchase_timestamp,\n                ROW_NUMBER() OVER(PARTITION BY c.customer_unique_id ORDER BY o.order_purchase_timestamp ASC) as rn\n            FROM orders o\n            JOIN customers c ON o.customer_id = c.customer_id\n        ),\n        first_two_orders AS (\n            SELECT \n                customer_unique_id,\n                MAX(CASE WHEN rn = 1 THEN order_purchase_timestamp END) as first_order,\n                MAX(CASE WHEN rn = 2 THEN order_purchase_timestamp END) as second_order\n            FROM ordered_customer_purchases\n            WHERE rn <= 2\n            GROUP BY customer_unique_id\n            HAVING COUNT(*) >= 2\n        )\n        SELECT customer_unique_id FROM first_two_orders\n    )) as cnt_all,\n    (SELECT COUNT(DISTINCT customer_unique_id) FROM (\n        WITH ordered_customer_purchases AS (\n            SELECT \n                c.customer_unique_id,\n                o.order_purchase_timestamp,\n                ROW_NUMBER() OVER(PARTITION BY c.customer_unique_id ORDER BY o.order_purchase_timestamp ASC) as rn\n            FROM orders o\n            JOIN customers c ON o.customer_id = c.customer_id\n        ),\n        first_two_orders AS (\n            SELECT \n                customer_unique_id,\n                MAX(CASE WHEN rn = 1 THEN order_purchase_timestamp END) as first_order,\n                MAX(CASE WHEN rn = 2 THEN order_purchase_timestamp END) as second_order\n            FROM ordered_customer_purchases\n            WHERE rn <= 2\n            GROUP BY customer_unique_id\n            HAVING COUNT(*) >= 2\n        )\n        SELECT customer_unique_id FROM first_two_orders\n    )) as cnt_distinct\n"
+        },
+        "error": null
+      }
+    ],
+    "plan": "UNIT: one unique customer (`customer_unique_id`) who has placed at least 2 orders.\nTABLES: `orders` joined with `customers` on `customer_id`.\nDEFINITIONS: \"customers who ordered at least twice\" means customers with $\\ge 2$ distinct orders ranked by `order_purchase_timestamp`. The days between first and second order is the difference in days between the 1st and 2nd `order_purchase_timestamp` for each qualifying customer.\nRESULT SHAPE: 1 row, 1 column containing the average number of days.",
+    "critiques": [
+      {
+        "attempt": 0,
+        "ok": true,
+        "reason": "Grain check passed with 2997 total rows and 2997 distinct customer_unique_id values, perfectly matching the unit of one unique customer."
+      }
+    ],
+    "answer": "```sql\nWITH ordered_customer_purchases AS (\n    SELECT \n        c.customer_unique_id,\n        o.order_purchase_timestamp,\n        ROW_NUMBER() OVER(PARTITION BY c.customer_unique_id ORDER BY o.order_purchase_timestamp ASC) as rn\n    FROM orders o\n    JOIN customers c ON o.customer_id = c.customer_id\n),\nfirst_two_orders AS (\n    SELECT \n        customer_unique_id,\n        MAX(CASE WHEN rn = 1 THEN order_purchase_timestamp END) as first_order,\n        MAX(CASE WHEN rn = 2 THEN order_purchase_timestamp END) as second_order\n    FROM ordered_customer_purchases\n    WHERE rn <= 2\n    GROUP BY customer_unique_id\n    HAVING COUNT(*) >= 2\n)\nSELECT \n    AVG(julianday(second_order) - julianday(first_order)) as avg_days_between\nFROM first_two_orders;\n```"
+  },
+  {
+    "id": "h13",
+    "correct": true,
+    "agent_sql": "SELECT\n  c.customer_city,\n  SUM(oi.price) AS total_revenue\nFROM customers AS c\nJOIN orders AS o\n  ON c.customer_id = o.customer_id\nJOIN order_items AS oi\n  ON o.order_id = oi.order_id\nWHERE\n  o.order_status = 'delivered'\nGROUP BY\n  c.customer_city\nORDER BY\n  total_revenue DESC\nLIMIT 5;",
+    "error": null,
+    "llm_calls": 16,
+    "steps": [
+      {
+        "role": "planner",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "customers"
+        },
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "orders"
+        },
+        "error": null
+      },
+      {
+        "role": "planner",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_items"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "list_tables",
+        "args": {},
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "customers"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "orders"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_items"
+        },
+        "error": null
+      },
+      {
+        "role": "worker",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT\n  c.customer_city,\n  SUM(oi.price) AS total_revenue\nFROM customers AS c\nJOIN orders AS o\n  ON c.customer_id = o.customer_id\nJOIN order_items AS oi\n  ON o.order_id = oi.order_id\nWHERE\n  o.order_status = 'delivered'\nGROUP BY\n  c.customer_city\nORDER BY\n  total_revenue DESC\nLIMIT 5;"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT COUNT(*), COUNT(DISTINCT oi.order_item_id) FROM customers AS c JOIN orders AS o ON c.customer_id = o.customer_id JOIN order_items AS oi ON o.order_id = oi.order_id WHERE o.order_status = 'delivered'"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "describe_table",
+        "args": {
+          "table": "order_items"
+        },
+        "error": null
+      },
+      {
+        "role": "critic",
+        "tool": "run_sql",
+        "args": {
+          "sql": "SELECT COUNT(*), COUNT(DISTINCT order_id || '-' || order_item_id) FROM order_items"
+        },
+        "error": null
+      }
+    ],
+    "plan": "UNIT: one order item.\nTABLES: customers (customer_city) JOIN orders (order_id) JOIN order_items (price).\nDEFINITIONS: \"delivered orders\" means orders where order_status = 'delivered'; \"revenue\" is the sum of the price column from order_items.\nRESULT SHAPE: 5 rows, 2 columns: customer_city, total_revenue (sorted descending).",
+    "critiques": [
+      {
+        "attempt": 0,
+        "ok": true,
+        "reason": "The grain check confirms that the query correctly aggregates revenue at the order item level, as the number of rows matches the total number of delivered order items."
+      }
+    ],
+    "answer": "To determine the 5 customer cities that generate the most revenue from item prices on delivered orders, we join the `customers`, `orders`, and `order_items` tables, filter for orders with a status of 'delivered', and aggregate the sum of the `price` column grouped by `customer_city`.\n\n```sql\nSELECT\n  c.customer_city,\n  SUM(oi.price) AS total_revenue\nFROM customers AS c\nJOIN orders AS o\n  ON c.customer_id = o.customer_id\nJOIN order_items AS oi\n  ON o.order_id = oi.order_id\nWHERE\n  o.order_status = 'delivered'\nGROUP BY\n  c.customer_city\nORDER BY\n  total_revenue DESC\nLIMIT 5;\n```"
+  }
+]

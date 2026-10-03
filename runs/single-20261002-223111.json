@@ -1,0 +1,23 @@
+[
+  {
+    "id": "q01",
+    "correct": true,
+    "agent_sql": "SELECT count(*) FROM orders WHERE order_status = 'delivered'",
+    "error": null,
+    "llm_calls": 5
+  },
+  {
+    "id": "q02",
+    "correct": true,
+    "agent_sql": "SELECT count(*) FROM orders WHERE order_status = 'canceled'",
+    "error": null,
+    "llm_calls": 5
+  },
+  {
+    "id": "q03",
+    "correct": true,
+    "agent_sql": "SELECT COUNT(*) FROM sellers WHERE seller_state = 'SP';",
+    "error": null,
+    "llm_calls": 4
+  }
+]

@@ -1,0 +1,182 @@
+[
+  {
+    "id": "q01",
+    "correct": true,
+    "agent_sql": "SELECT count(*) FROM orders WHERE order_status = 'delivered'",
+    "error": null,
+    "llm_calls": 5,
+    "steps": [],
+    "answer": "```sql\nSELECT count(*) FROM orders WHERE order_status = 'delivered'\n```"
+  },
+  {
+    "id": "q02",
+    "correct": true,
+    "agent_sql": "SELECT COUNT(*) FROM orders WHERE order_status = 'canceled'",
+    "error": null,
+    "llm_calls": 5,
+    "steps": [],
+    "answer": "```sql\nSELECT COUNT(*) FROM orders WHERE order_status = 'canceled'\n```"
+  },
+  {
+    "id": "q03",
+    "correct": true,
+    "agent_sql": "SELECT count(*) FROM sellers WHERE seller_state = 'SP'",
+    "error": null,
+    "llm_calls": 4,
+    "steps": [],
+    "answer": "```sql\nSELECT count(*) FROM sellers WHERE seller_state = 'SP'\n```"
+  },
+  {
+    "id": "q04",
+    "correct": true,
+    "agent_sql": "SELECT COUNT(DISTINCT customer_unique_id) AS unique_customers FROM customers;",
+    "error": null,
+    "llm_calls": 4,
+    "steps": [],
+    "answer": "```sql\nSELECT COUNT(DISTINCT customer_unique_id) AS unique_customers FROM customers;\n```"
+  },
+  {
+    "id": "q05",
+    "correct": true,
+    "agent_sql": "SELECT ROUND(AVG(review_score), 2) AS average_review_score FROM reviews",
+    "error": null,
+    "llm_calls": 4,
+    "steps": [],
+    "answer": "```sql\nSELECT ROUND(AVG(review_score), 2) AS average_review_score FROM reviews\n```"
+  },
+  {
+    "id": "q06",
+    "correct": true,
+    "agent_sql": "SELECT review_score, COUNT(*) AS count\nFROM reviews\nGROUP BY review_score\nORDER BY review_score;",
+    "error": null,
+    "llm_calls": 4,
+    "steps": [],
+    "answer": "```sql\nSELECT review_score, COUNT(*) AS count\nFROM reviews\nGROUP BY review_score\nORDER BY review_score;\n```"
+  },
+  {
+    "id": "q07",
+    "correct": true,
+    "agent_sql": "SELECT COUNT(DISTINCT product_category_name) \nFROM products \nWHERE product_category_name IS NOT NULL AND product_category_name != ''",
+    "error": null,
+    "llm_calls": 4,
+    "steps": [],
+    "answer": "```sql\nSELECT COUNT(DISTINCT product_category_name) \nFROM products \nWHERE product_category_name IS NOT NULL AND product_category_name != ''\n```"
+  },
+  {
+    "id": "q08",
+    "correct": true,
+    "agent_sql": "SELECT c.customer_state, COUNT(o.order_id) AS order_count\nFROM customers c\nJOIN orders o ON c.customer_id = o.customer_id\nGROUP BY c.customer_state\nORDER BY order_count DESC\nLIMIT 5;",
+    "error": null,
+    "llm_calls": 5,
+    "steps": [],
+    "answer": "```sql\nSELECT c.customer_state, COUNT(o.order_id) AS order_count\nFROM customers c\nJOIN orders o ON c.customer_id = o.customer_id\nGROUP BY c.customer_state\nORDER BY order_count DESC\nLIMIT 5;\n```"
+  },
+  {
+    "id": "q09",
+    "correct": true,
+    "agent_sql": "SELECT payment_type, COUNT(*) AS payment_count\nFROM order_payments\nGROUP BY payment_type\nORDER BY payment_count DESC\nLIMIT 1;",
+    "error": null,
+    "llm_calls": 4,
+    "steps": [],
+    "answer": "To find the most used payment type and the number of payments using it, we can query the `order_payments` table, group by `payment_type`, count the occurrences, and order by the count descending.\n\n```sql\nSELECT payment_type, COUNT(*) AS payment_count\nFROM order_payments\nGROUP BY payment_type\nORDER BY payment_count DESC\nLIMIT 1;\n```"
+  },
+  {
+    "id": "q10",
+    "correct": true,
+    "agent_sql": "SELECT payment_type, ROUND(AVG(payment_value), 2) AS avg_payment_value \nFROM order_payments \nGROUP BY payment_type;",
+    "error": null,
+    "llm_calls": 6,
+    "steps": [],
+    "answer": "```sql\nSELECT payment_type, ROUND(AVG(payment_value), 2) AS avg_payment_value \nFROM order_payments \nGROUP BY payment_type;\n```"
+  },
+  {
+    "id": "q11",
+    "correct": true,
+    "agent_sql": "SELECT \n    STRFTIME('%Y', order_purchase_timestamp) AS year,\n    COUNT(*) AS order_count\nFROM orders\nGROUP BY year\nORDER BY year;",
+    "error": null,
+    "llm_calls": 4,
+    "steps": [],
+    "answer": "```sql\nSELECT \n    STRFTIME('%Y', order_purchase_timestamp) AS year,\n    COUNT(*) AS order_count\nFROM orders\nGROUP BY year\nORDER BY year;\n```"
+  },
+  {
+    "id": "q12",
+    "correct": true,
+    "agent_sql": "SELECT COUNT(*) FROM (\n    SELECT order_id\n    FROM order_items\n    GROUP BY order_id\n    HAVING COUNT(*) > 1\n)",
+    "error": null,
+    "llm_calls": 4,
+    "steps": [],
+    "answer": "```sql\nSELECT COUNT(*) FROM (\n    SELECT order_id\n    FROM order_items\n    GROUP BY order_id\n    HAVING COUNT(*) > 1\n)\n```"
+  },
+  {
+    "id": "q13",
+    "correct": true,
+    "agent_sql": "SELECT \n    t.product_category_name_english,\n    COUNT(oi.order_item_id) AS items_sold\nFROM order_items oi\nJOIN products p ON oi.product_id = p.product_id\nJOIN category_translation t ON p.product_category_name = t.product_category_name\nGROUP BY t.product_category_name_english\nORDER BY items_sold DESC\nLIMIT 5;",
+    "error": null,
+    "llm_calls": 4,
+    "steps": [],
+    "answer": "```sql\nSELECT \n    t.product_category_name_english,\n    COUNT(oi.order_item_id) AS items_sold\nFROM order_items oi\nJOIN products p ON oi.product_id = p.product_id\nJOIN category_translation t ON p.product_category_name = t.product_category_name\nGROUP BY t.product_category_name_english\nORDER BY items_sold DESC\nLIMIT 5;\n```"
+  },
+  {
+    "id": "q14",
+    "correct": true,
+    "agent_sql": "SELECT customer_city, COUNT(DISTINCT customer_unique_id) AS unique_customers_count \nFROM customers \nGROUP BY customer_city \nORDER BY unique_customers_count DESC \nLIMIT 5;",
+    "error": null,
+    "llm_calls": 4,
+    "steps": [],
+    "answer": "```sql\nSELECT customer_city, COUNT(DISTINCT customer_unique_id) AS unique_customers_count \nFROM customers \nGROUP BY customer_city \nORDER BY unique_customers_count DESC \nLIMIT 5;\n```"
+  },
+  {
+    "id": "q15",
+    "correct": true,
+    "agent_sql": "SELECT \n    ROUND(SUM(oi.price), 2) AS total_revenue\nFROM order_items oi\nJOIN orders o ON oi.order_id = o.order_id\nWHERE o.order_status = 'delivered';",
+    "error": null,
+    "llm_calls": 4,
+    "steps": [],
+    "answer": "\t\n\n```sql\nSELECT \n    ROUND(SUM(oi.price), 2) AS total_revenue\nFROM order_items oi\nJOIN orders o ON oi.order_id = o.order_id\nWHERE o.order_status = 'delivered';\n```"
+  },
+  {
+    "id": "q16",
+    "correct": true,
+    "agent_sql": "SELECT \n    ROUND(AVG(julianday(order_delivered_customer_date) - julianday(order_purchase_timestamp)), 2) AS avg_delivery_days\nFROM orders\nWHERE order_status = 'delivered' \n  AND order_delivered_customer_date IS NOT NULL;",
+    "error": null,
+    "llm_calls": 4,
+    "steps": [],
+    "answer": "C\n```sql\nSELECT \n    ROUND(AVG(julianday(order_delivered_customer_date) - julianday(order_purchase_timestamp)), 2) AS avg_delivery_days\nFROM orders\nWHERE order_status = 'delivered' \n  AND order_delivered_customer_date IS NOT NULL;\n```"
+  },
+  {
+    "id": "q17",
+    "correct": true,
+    "agent_sql": "SELECT \n  ROUND(\n    100.0 * SUM(CASE WHEN DATE(order_delivered_customer_date) > DATE(order_estimated_delivery_date) THEN 1 ELSE 0 END) / COUNT(*), \n    2\n  ) AS percentage_late\nFROM orders\nWHERE order_status = 'delivered' \n  AND order_delivered_customer_date IS NOT NULL;",
+    "error": null,
+    "llm_calls": 4,
+    "steps": [],
+    "answer": "```sql\nSELECT \n  ROUND(\n    100.0 * SUM(CASE WHEN DATE(order_delivered_customer_date) > DATE(order_estimated_delivery_date) THEN 1 ELSE 0 END) / COUNT(*), \n    2\n  ) AS percentage_late\nFROM orders\nWHERE order_status = 'delivered' \n  AND order_delivered_customer_date IS NOT NULL;\n```"
+  },
+  {
+    "id": "q18",
+    "correct": true,
+    "agent_sql": "SELECT \n    c.customer_state,\n    AVG(julianday(o.order_delivered_customer_date) - julianday(o.order_purchase_timestamp)) AS avg_delivery_days\nFROM orders o\nJOIN customers c ON o.customer_id = c.customer_id\nWHERE o.order_status = 'delivered'\n  AND o.order_delivered_customer_date IS NOT NULL\n  AND o.order_purchase_timestamp IS NOT NULL\nGROUP BY c.customer_state\nORDER BY avg_delivery_days DESC\nLIMIT 5;",
+    "error": null,
+    "llm_calls": 4,
+    "steps": [],
+    "answer": "```sql\nSELECT \n    c.customer_state,\n    AVG(julianday(o.order_delivered_customer_date) - julianday(o.order_purchase_timestamp)) AS avg_delivery_days\nFROM orders o\nJOIN customers c ON o.customer_id = c.customer_id\nWHERE o.order_status = 'delivered'\n  AND o.order_delivered_customer_date IS NOT NULL\n  AND o.order_purchase_timestamp IS NOT NULL\nGROUP BY c.customer_state\nORDER BY avg_delivery_days DESC\nLIMIT 5;\n```"
+  },
+  {
+    "id": "q19",
+    "correct": true,
+    "agent_sql": "SELECT \n  CASE \n    WHEN date(o.order_delivered_customer_date) > date(o.order_estimated_delivery_date) THEN 'late'\n    ELSE 'on_time'\n  END AS delivery_status,\n  AVG(r.review_score) AS avg_score\nFROM orders o\nJOIN reviews r ON o.order_id = r.order_id\nWHERE o.order_status = 'delivered'\n  AND o.order_delivered_customer_date IS NOT NULL\nGROUP BY delivery_status\nORDER BY delivery_status DESC;",
+    "error": null,
+    "llm_calls": 6,
+    "steps": [],
+    "answer": "```sql\nSELECT \n  CASE \n    WHEN date(o.order_delivered_customer_date) > date(o.order_estimated_delivery_date) THEN 'late'\n    ELSE 'on_time'\n  END AS delivery_status,\n  AVG(r.review_score) AS avg_score\nFROM orders o\nJOIN reviews r ON o.order_id = r.order_id\nWHERE o.order_status = 'delivered'\n  AND o.order_delivered_customer_date IS NOT NULL\nGROUP BY delivery_status\nORDER BY delivery_status DESC;\n```"
+  },
+  {
+    "id": "q20",
+    "correct": true,
+    "agent_sql": "SELECT \n    oi.seller_id, \n    SUM(oi.price) AS revenue\nFROM order_items oi\nJOIN orders o ON oi.order_id = o.order_id\nWHERE o.order_status = 'delivered'\nGROUP BY oi.seller_id\nORDER BY revenue DESC\nLIMIT 5;",
+    "error": null,
+    "llm_calls": 5,
+    "steps": [],
+    "answer": "```sql\nSELECT \n    oi.seller_id, \n    SUM(oi.price) AS revenue\nFROM order_items oi\nJOIN orders o ON oi.order_id = o.order_id\nWHERE o.order_status = 'delivered'\nGROUP BY oi.seller_id\nORDER BY revenue DESC\nLIMIT 5;\n```"
+  }
+]
